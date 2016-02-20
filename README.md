@@ -46,7 +46,6 @@ git clone https://github.com/pedro-vicente/data-explorer.git
 Build with:
 <pre>
 qmake
-./configure
 make
 </pre>
 
@@ -69,7 +68,7 @@ test_03.cdl includes a five dimensional variable
 To run and open a sample file from the command line:
 
 <pre>
-./src/explorer data/netcdf/test_03.nc
+./explorer data/netcdf/test_03.nc
 </pre>
 
 <a target="_blank" href="http://www.space-research.org/">
