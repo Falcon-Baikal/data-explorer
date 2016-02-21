@@ -48,6 +48,7 @@ class MainWindow : public QMainWindow
 public:
   MainWindow();
   void table(ItemData *item_data);
+  int read_file(QString file_name);
 
 private:
 
@@ -98,7 +99,6 @@ private:
   void about();
 
 private:
-  int read_file(QString file_name);
   int iterate(const std::string& file_name, const int grp_id, QTreeWidgetItem *tree_item);
 };
 

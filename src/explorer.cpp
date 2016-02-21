@@ -18,7 +18,21 @@ int main(int argc, char *argv[])
 {
   Q_INIT_RESOURCE(explorer);
   QApplication app(argc, argv);
+  QCoreApplication::setApplicationVersion("1.1");
+  QCoreApplication::setApplicationName("Data Explorer");
+  QCommandLineParser parser;
+  parser.addHelpOption();
+  parser.addVersionOption();
+  parser.addPositionalArgument("file", "The file to open.");
+  parser.process(app);
+  const QStringList args = parser.positionalArguments();
+
   MainWindow window;
+  if(args.size())
+  {
+    QString file_name = args.at(0);
+    window.read_file(file_name);
+  }
   window.showMaximized();
   return app.exec();
 }
