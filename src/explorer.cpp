@@ -231,6 +231,7 @@ MainWindow::MainWindow()
   m_tree = new FileTreeWidget();
   m_tree->setHeaderHidden(1);
   m_tree->setFixedWidth(300);
+  m_tree->set_main_window(this);
   //add dock
   m_tree_dock->setWidget(m_tree);
   addDockWidget(Qt::LeftDockWidgetArea, m_tree_dock);
@@ -607,6 +608,316 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::table
+///////////////////////////////////////////////////////////////////////////////////////
+
+class TableWidget : public QTableWidget
+{
+public:
+  TableWidget(QWidget *parent, ItemData *item_data);
+  ItemData *m_item_data; // the tree item that generated this grid (convenience pointer to data in ItemData)
+  ncvar_t *m_ncvar; // netCDF variable to display (convenience pointer to data in ItemData)
+  void show_grid();
+  const char* get_format(const nc_type typ);
+
+protected:
+  int m_nbr_rows;   // number of rows
+  int m_nbr_cols;   // number of columns
+  int m_dim_rows;   // choose rows (convenience duplicate to data in ItemData)
+  int m_dim_cols;   // choose columns (convenience duplicate to data in ItemData)
+  std::vector<ncvar_t *> m_ncvar_crd; // optional coordinate variables for variable (convenience duplicate to data in ItemData)
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
+//TableWidget::TableWidget
+///////////////////////////////////////////////////////////////////////////////////////
+
+TableWidget::TableWidget(QWidget *parent, ItemData *item_data) :
+QTableWidget(parent),
+m_item_data(item_data),
+m_ncvar(item_data->m_ncvar),
+m_dim_rows(item_data->m_grid_policy->m_dim_rows),
+m_dim_cols(item_data->m_grid_policy->m_dim_cols),
+m_ncvar_crd(item_data->m_ncvar_crd)
+{
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  //define grid
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  if(m_ncvar->m_ncdim.size() == 0)
+  {
+    m_nbr_rows = 1;
+    m_nbr_cols = 1;
+  }
+  else if(m_ncvar->m_ncdim.size() == 1)
+  {
+    assert(m_dim_rows == 0);
+    m_nbr_rows = m_ncvar->m_ncdim[m_dim_rows].m_size;
+    m_nbr_cols = 1;
+  }
+  else
+  {
+    m_nbr_rows = m_ncvar->m_ncdim[m_dim_rows].m_size;
+    m_nbr_cols = m_ncvar->m_ncdim[m_dim_cols].m_size;
+  }
+  setRowCount(m_nbr_rows);
+  setColumnCount(m_nbr_cols);
+
+  //show data
+  this->show_grid();
+
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//TableWidget::get_format
+//Provide sprintf() format string for specified netCDF type
+//Based on NCO utilities
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const char* TableWidget::get_format(const nc_type typ)
+{
+  switch(typ)
+  {
+  case NC_FLOAT:
+    return "%g";
+  case NC_DOUBLE:
+    return "%.12g";
+  case NC_INT:
+    return "%i";
+  case NC_SHORT:
+    return "%hi";
+  case NC_CHAR:
+    return "%c";
+  case NC_BYTE:
+    return "%hhi";
+  case NC_UBYTE:
+    return "%hhu";
+  case NC_USHORT:
+    return "%hu";
+  case NC_UINT:
+    return "%u";
+  case NC_INT64:
+    return "%lli";
+  case NC_UINT64:
+    return "%llu";
+  case NC_STRING:
+    return "%s";
+  }
+  return NULL;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+//TableWidget::show_grid
+///////////////////////////////////////////////////////////////////////////////////////
+
+void TableWidget::show_grid()
+{
+  size_t idx_buf = 0;
+  float *buf_float = NULL;
+  double *buf_double = NULL;
+  int *buf_int = NULL;
+  short *buf_short = NULL;
+  char *buf_char = NULL;
+  signed char *buf_byte = NULL;
+  unsigned char *buf_ubyte = NULL;
+  unsigned short *buf_ushort = NULL;
+  unsigned int *buf_uint = NULL;
+  long long *buf_int64 = NULL;
+  unsigned long long *buf_uint64 = NULL;
+  char* *buf_string = NULL;
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  //grid
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  switch(m_ncvar->m_nc_type)
+  {
+  case NC_FLOAT:
+    buf_float = static_cast<float*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_FLOAT), buf_float[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_DOUBLE:
+    buf_double = static_cast<double*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_DOUBLE), buf_double[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_INT:
+    buf_int = static_cast<int*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_INT), buf_int[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_SHORT:
+    buf_short = static_cast<short*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_SHORT), buf_short[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_CHAR:
+    buf_char = static_cast<char*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_CHAR), buf_char[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_BYTE:
+    buf_byte = static_cast<signed char*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_BYTE), buf_byte[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_UBYTE:
+    buf_ubyte = static_cast<unsigned char*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_UBYTE), buf_ubyte[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_USHORT:
+    buf_ushort = static_cast<unsigned short*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_USHORT), buf_ushort[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_UINT:
+    buf_uint = static_cast<unsigned int*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_UINT), buf_uint[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_INT64:
+    buf_int64 = static_cast<long long*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_INT64), buf_int64[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_UINT64:
+    buf_uint64 = static_cast<unsigned long long*> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_UINT64), buf_uint64[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  case NC_STRING:
+    buf_string = static_cast<char**> (m_ncvar->m_buf);
+    for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        QString str;
+        str.sprintf(get_format(NC_STRING), buf_string[idx_buf]);
+        QTableWidgetItem *item = new QTableWidgetItem(str);
+        this->setItem(idx_row, idx_col, item);
+        idx_buf++;
+      }
+    }
+    break;
+  }//switch
+
+}
+
+
+///////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::table
+///////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::table(ItemData *item_data)
+{
+  TableWidget *table = new TableWidget(this, item_data);
+  m_mdi_area->addSubWindow(table);
+  table->show();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 //FileTreeWidget::FileTreeWidget 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -663,6 +974,9 @@ void FileTreeWidget::grid()
 {
   QTreeWidgetItem *item = static_cast <QTreeWidgetItem*> (currentItem());
   this->load_item(item);
+  ItemData *item_data = get_item_data(item);
+  assert(item_data->m_kind == ItemData::Variable);
+  m_main_window->table(item_data);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

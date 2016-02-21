@@ -9,6 +9,9 @@
 #include <string>
 #include "netcdf.h"
 
+class MainWindow;
+class ItemData;
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //FileTreeWidget
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,16 +26,28 @@ public:
   void show_context_menu(const QPoint &);
   void grid();
 
+public:
+  void set_main_window(MainWindow *p)
+  {
+    m_main_window = p;
+  }
+
 private:
+  MainWindow *m_main_window;
   void load_item(QTreeWidgetItem *);
   void* load_variable(const int nc_id, const int var_id, const nc_type var_type, size_t buf_sz);
 };
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//MainWindow
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class MainWindow : public QMainWindow
 {
   Q_OBJECT
 public:
   MainWindow();
+  void table(ItemData *item_data);
 
 private:
 
