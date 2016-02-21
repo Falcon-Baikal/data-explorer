@@ -155,11 +155,12 @@ public:
   };
 
   ItemData(ItemKind kind, const std::string& file_name, const std::string& grp_nm_fll, const std::string& item_nm,
-    ncvar_t *ncvar, grid_policy_t *grid_policy) :
+    ItemData *item_data_prn, ncvar_t *ncvar, grid_policy_t *grid_policy) :
     m_file_name(file_name),
     m_grp_nm_fll(grp_nm_fll),
     m_item_nm(item_nm),
     m_kind(kind),
+    m_item_data_prn(item_data_prn),
     m_ncvar(ncvar),
     m_grid_policy(grid_policy)
   {
@@ -178,6 +179,7 @@ public:
   std::string m_item_nm; // (Root/Variable/Group/Attribute ) item name to display on tree
   ItemKind m_kind; // (Root/Variable/Group/Attribute) type of item 
   std::vector<std::string> m_var_nms; // (Group) list of variables if item is group (filled in file iteration)
+  ItemData *m_item_data_prn; //  (Variable/Group) item data of the parent group (to get list of variables in group)
   ncvar_t *m_ncvar; // (Variable) netCDF variable to display
   std::vector<ncvar_t *> m_ncvar_crd; // (Variable) optional coordinate variables for variable
   grid_policy_t *m_grid_policy; // (Variable) current grid policy (interactive)
@@ -260,6 +262,14 @@ MainWindow::MainWindow()
   connect(m_action_exit, SIGNAL(triggered()), this, SLOT(close()));
 
   ///////////////////////////////////////////////////////////////////////////////////////
+  //about
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  m_action_about = new QAction(tr("&About"), this);
+  m_action_about->setStatusTip(tr("Show the application's About box"));
+  connect(m_action_about, SIGNAL(triggered()), this, SLOT(about()));
+
+  ///////////////////////////////////////////////////////////////////////////////////////
   //recent files
   ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -281,6 +291,8 @@ MainWindow::MainWindow()
     m_menu_file->addAction(m_action_recent_file[i]);
   m_menu_file->addSeparator();
   m_menu_file->addAction(m_action_exit);
+  m_menu_help = menuBar()->addMenu(tr("&Help"));
+  m_menu_help->addAction(m_action_about);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //toolbar
@@ -313,6 +325,17 @@ MainWindow::MainWindow()
   ///////////////////////////////////////////////////////////////////////////////////////
 
   setWindowIcon(m_icon_main);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::about
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::about()
+{
+  QMessageBox::about(this,
+    tr("About Data Explorer"),
+    tr("(c) 2015-2016 Pedro Vicente -- Space Research Software LLC\n\n"));
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -446,6 +469,7 @@ int MainWindow::read_file(QString file_name)
     str_file_name,
     "/",
     "/",
+    (ItemData*)NULL,
     (ncvar_t*)NULL,
     (grid_policy_t*)NULL);
 
@@ -495,6 +519,10 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
   size_t dmn_sz[NC_MAX_VAR_DIMS]; // dimensions for variable sizes
   char dmn_nm_var[NC_MAX_NAME + 1]; //dimension name
 
+  //get item data (of parent item), to store a list of variable names 
+  ItemData *item_data_prn = get_item_data(tree_item_parent);
+  assert(item_data_prn->m_kind == ItemData::Group || item_data_prn->m_kind == ItemData::Root);
+
   // get full name of (parent) group
   if(nc_inq_grpname_full(grp_id, &grp_nm_lng, NULL) != NC_NOERR)
   {
@@ -522,6 +550,9 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
 
     }
 
+    //store variable name in parent group item (for coordinate variables detection)
+    item_data_prn->m_var_nms.push_back(var_nm);
+
     //get dimensions
     for(int idx_dmn = 0; idx_dmn < nbr_dmn_var; idx_dmn++)
     {
@@ -547,6 +578,7 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
       file_name,
       grp_nm_fll,
       var_nm,
+      item_data_prn,
       ncvar,
       grid_policy);
 
@@ -584,6 +616,7 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
       file_name,
       grp_nm_fll,
       grp_nm,
+      item_data_prn,
       (ncvar_t*)NULL,
       (grid_policy_t*)NULL);
 
@@ -1047,10 +1080,83 @@ void FileTreeWidget::load_item(QTreeWidgetItem  *item)
   //get dimensions 
   for(int idx_dmn = 0; idx_dmn < nbr_dmn; idx_dmn++)
   {
+    int has_crd_var = 0;
+
     //dimensions belong to groups
     if(nc_inq_dim(grp_id, var_dimid[idx_dmn], dmn_nm_var, &dmn_sz[idx_dmn]) != NC_NOERR)
     {
 
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+    //look up possible coordinate variables
+    //traverse all variables in group and match a variable name 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    for(size_t idx_var = 0; idx_var < item_data->m_item_data_prn->m_var_nms.size(); idx_var++)
+    {
+      std::string var_nm(item_data->m_item_data_prn->m_var_nms[idx_var]);
+
+      if(var_nm == std::string(dmn_nm_var))
+      {
+        has_crd_var = 1;
+        break;
+      }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+    //a coordinate variable was found
+    //since the lookup was only in the same group, get the variable information on this group 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    if(has_crd_var)
+    {
+      int crd_var_id;
+      char crd_var_nm[NC_MAX_NAME + 1];
+      int crd_nbr_dmn;
+      int crd_var_dimid[NC_MAX_VAR_DIMS];
+      size_t crd_dmn_sz[NC_MAX_VAR_DIMS];
+      nc_type crd_var_type = NC_NAT;
+
+      // get coordinate variable ID (using the dimension name, since there was a match to a variable)
+      if(nc_inq_varid(grp_id, dmn_nm_var, &crd_var_id) != NC_NOERR)
+      {
+
+      }
+
+      if(nc_inq_var(grp_id, crd_var_id, crd_var_nm, &crd_var_type, &crd_nbr_dmn, crd_var_dimid, (int *)NULL) != NC_NOERR)
+      {
+
+      }
+
+      assert(std::string(crd_var_nm) == std::string(dmn_nm_var));
+
+      if(crd_nbr_dmn == 1)
+      {
+        //get size
+        if(nc_inq_dim(grp_id, crd_var_dimid[0], (char *)NULL, &crd_dmn_sz[0]) != NC_NOERR)
+        {
+
+        }
+
+        //store dimension 
+        std::vector<ncdim_t> ncdim; //dimensions for each variable 
+        ncdim_t dim(dmn_nm_var, crd_dmn_sz[0]);
+        ncdim.push_back(dim);
+
+        //store a ncvar_t
+        ncvar_t *ncvar = new ncvar_t(crd_var_nm, crd_var_type, ncdim);
+
+        //allocate, load 
+        ncvar->store(load_variable(grp_id, crd_var_id, crd_var_type, crd_dmn_sz[0]));
+
+        //and store in tree 
+        item_data->m_ncvar_crd.push_back(ncvar);
+      }
+    }
+    else
+    {
+      item_data->m_ncvar_crd.push_back(NULL); //no coordinate variable for this dimension
     }
   }
 

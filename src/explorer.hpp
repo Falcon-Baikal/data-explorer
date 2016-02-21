@@ -56,6 +56,7 @@ private:
   ///////////////////////////////////////////////////////////////////////////////////////
 
   QMenu *m_menu_file;
+  QMenu *m_menu_help;
   QToolBar *m_tool_bar;
   QMdiArea *m_mdi_area;
   FileTreeWidget *m_tree;
@@ -67,6 +68,7 @@ private:
 
   QAction *m_action_open;
   QAction *m_action_exit;
+  QAction *m_action_about;
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //icons
@@ -93,6 +95,7 @@ private:
   private slots:
   void open_recent_file();
   void open();
+  void about();
 
 private:
   int read_file(QString file_name);
