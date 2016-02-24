@@ -673,8 +673,8 @@ class TableWidget : public QTableWidget
 {
 public:
   TableWidget(QWidget *parent, ItemData *item_data);
-  void previous_layer();
-  void next_layer();
+  void previous_layer(int idx_layer);
+  void next_layer(int idx_layer);
 
   std::vector<int> m_layer;  // current selected layer of a dimension > 2 
   ItemData *m_item_data; // the tree item that generated this grid (convenience pointer to data in ItemData)
@@ -697,33 +697,171 @@ protected:
 ChildWindow::ChildWindow(QWidget *parent, ItemData *item_data) :
 QMainWindow(parent)
 {
+  float *buf_float = NULL;
+  double *buf_double = NULL;
+  int *buf_int = NULL;
+  short *buf_short = NULL;
+  signed char *buf_byte = NULL;
+  unsigned char *buf_ubyte = NULL;
+  unsigned short *buf_ushort = NULL;
+  unsigned int *buf_uint = NULL;
+  long long *buf_int64 = NULL;
+  unsigned long long *buf_uint64 = NULL;
+
   m_table = new TableWidget(parent, item_data);
   setCentralWidget(m_table);
 
+  QSignalMapper *signal_mapper_next;
+  QSignalMapper *signal_mapper_previous;
+  QSignalMapper *signal_mapper_combo;
   //data has layers
   if(item_data->m_ncvar->m_ncdim.size() > 2)
+  {
+    m_tool_bar = addToolBar(tr("Layers"));
+    signal_mapper_next = new QSignalMapper(this);
+    signal_mapper_previous = new QSignalMapper(this);
+    signal_mapper_combo = new QSignalMapper(this);
+    connect(signal_mapper_next, SIGNAL(mapped(int)), this, SLOT(next_layer(int)));
+    connect(signal_mapper_previous, SIGNAL(mapped(int)), this, SLOT(previous_layer(int)));
+    connect(signal_mapper_combo, SIGNAL(mapped(int)), this, SLOT(combo_layer(int)));
+  }
+
+  //number of dimensions above a two-dimensional dataset
+  for(size_t idx_dmn = 0; idx_dmn < m_table->m_layer.size(); idx_dmn++)
   {
     ///////////////////////////////////////////////////////////////////////////////////////
     //next layer
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    m_next_layer = new QAction(tr("&Next layer..."), this);
-    m_next_layer->setIcon(QIcon(":/images/right.png"));
-    m_next_layer->setStatusTip(tr("Next layer"));
-    connect(m_next_layer, SIGNAL(triggered()), this, SLOT(next_layer()));
+    QAction *action_next  = new QAction(tr("&Next layer..."), this);
+    action_next->setIcon(QIcon(":/images/right.png"));
+    action_next->setStatusTip(tr("Next layer"));
+    connect(action_next, SIGNAL(triggered()), signal_mapper_next, SLOT(map()));
+    signal_mapper_next->setMapping(action_next, idx_dmn);
 
     ///////////////////////////////////////////////////////////////////////////////////////
     //previous layer
     ///////////////////////////////////////////////////////////////////////////////////////
 
-    m_previous_layer = new QAction(tr("&Previous layer..."), this);
-    m_previous_layer->setIcon(QIcon(":/images/left.png"));
-    m_previous_layer->setStatusTip(tr("Previous layer"));
-    connect(m_previous_layer, SIGNAL(triggered()), this, SLOT(previous_layer()));
+    QAction *action_previous = new QAction(tr("&Previous layer..."), this);
+    action_previous->setIcon(QIcon(":/images/left.png"));
+    action_previous->setStatusTip(tr("Previous layer"));
+    connect(action_previous, SIGNAL(triggered()), signal_mapper_previous, SLOT(map()));
+    signal_mapper_previous->setMapping(action_previous, idx_dmn);
 
-    m_tool_bar = addToolBar(tr("Layers"));
-    m_tool_bar->addAction(m_next_layer);
-    m_tool_bar->addAction(m_previous_layer);
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //add to toolbar
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    m_tool_bar->addAction(action_next);
+    m_tool_bar->addAction(action_previous);
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //add combo box with layers, fill with possible coordinate variables and store combo in vector 
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    QComboBox *combo = new QComboBox;
+    QFont font = combo->font();
+    font.setPointSize(9);
+    combo->setFont(font);
+    QStringList list;
+
+    //coordinate variable exists
+    if(item_data->m_ncvar_crd[idx_dmn] != NULL)
+    {
+      void *buf = item_data->m_ncvar_crd[idx_dmn]->m_buf;
+      size_t size = item_data->m_ncvar->m_ncdim[idx_dmn].m_size;
+      QString str;
+      switch(item_data->m_ncvar_crd[idx_dmn]->m_nc_type)
+      {
+      case NC_FLOAT:
+        buf_float = static_cast<float*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_FLOAT), buf_float[idx]);
+          list.append(str);
+        }
+        break;
+      case NC_DOUBLE:
+        buf_double = static_cast<double*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_DOUBLE), buf_double[idx]);
+        }
+        break;
+      case NC_INT:
+        buf_int = static_cast<int*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_INT), buf_int[idx]);
+        }
+        break;
+      case NC_SHORT:
+        buf_short = static_cast<short*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_SHORT), buf_short[idx]);
+        }
+        break;
+      case NC_BYTE:
+        buf_byte = static_cast<signed char*>  (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_BYTE), buf_byte[idx]);
+        }
+        break;
+      case NC_UBYTE:
+        buf_ubyte = static_cast<unsigned char*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_UBYTE), buf_ubyte[idx]);
+        }
+        break;
+      case NC_USHORT:
+        buf_ushort = static_cast<unsigned short*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_USHORT), buf_ushort[idx]);
+        }
+        break;
+      case NC_UINT:
+        buf_uint = static_cast<unsigned int*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_UINT), buf_uint[idx]);
+        }
+        break;
+      case NC_INT64:
+        buf_int64 = static_cast<long long*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_INT64), buf_int64[idx]);
+        }
+        break;
+      case NC_UINT64:
+        buf_uint64 = static_cast<unsigned long long*> (buf);
+        for(size_t idx = 0; idx < size; idx++)
+        {
+          str.sprintf(m_table->get_format(NC_UINT64), buf_uint64[idx]);
+        }
+        break;
+      } //switch
+    }
+    else
+    {
+      for(unsigned int idx = 0; idx < item_data->m_ncvar->m_ncdim[idx_dmn].m_size; idx++)
+      {
+        QString str;
+        str.sprintf("%u", idx + 1);
+        list.append(str);
+      }
+    }
+
+    combo->addItems(list);
+    connect(combo, SIGNAL(currentIndexChanged(int)), signal_mapper_combo, SLOT(map()));
+    signal_mapper_combo->setMapping(combo, idx_dmn);
+    m_tool_bar->addWidget(combo);
+    m_vec_combo.push_back(combo);
   }
 
 }
@@ -732,18 +870,34 @@ QMainWindow(parent)
 //ChildWindow::previous_layer
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void ChildWindow::previous_layer()
+void ChildWindow::previous_layer(int idx_layer)
 {
-  m_table->previous_layer();
+  m_table->previous_layer(idx_layer);
+  QComboBox *combo = m_vec_combo.at(idx_layer);
+  combo->setCurrentIndex(m_table->m_layer[idx_layer]);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //ChildWindow::next_layer
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void ChildWindow::next_layer()
+void ChildWindow::next_layer(int idx_layer)
 {
-  m_table->next_layer();
+  m_table->next_layer(idx_layer);
+  QComboBox *combo = m_vec_combo.at(idx_layer);
+  combo->setCurrentIndex(m_table->m_layer[idx_layer]);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//ChildWindow::combo_layer
+///////////////////////////////////////////////////////////////////////////////////////
+
+void ChildWindow::combo_layer(int idx_layer)
+{
+  QComboBox *combo = m_vec_combo.at(idx_layer);
+  m_table->m_layer[idx_layer] = combo->currentIndex();;
+  m_table->show_grid();
+  m_table->update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -801,12 +955,12 @@ m_ncvar_crd(item_data->m_ncvar_crd)
 //TableWidget::previous_layer
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void TableWidget::previous_layer()
+void TableWidget::previous_layer(int idx_layer)
 {
-  m_layer[0]--;
-  if(m_layer[0] < 0)
+  m_layer[idx_layer]--;
+  if(m_layer[idx_layer] < 0)
   {
-    m_layer[0] = 0;
+    m_layer[idx_layer] = 0;
     return;
   }
   show_grid();
@@ -817,12 +971,12 @@ void TableWidget::previous_layer()
 //TableWidget::next_layer
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void TableWidget::next_layer()
+void TableWidget::next_layer(int idx_layer)
 {
-  m_layer[0]++;
-  if((size_t)m_layer[0] >= m_ncvar->m_ncdim[0].m_size)
+  m_layer[idx_layer]++;
+  if((size_t)m_layer[idx_layer] >= m_ncvar->m_ncdim[idx_layer].m_size)
   {
-    m_layer[0] = m_ncvar->m_ncdim[0].m_size - 1;
+    m_layer[idx_layer] = m_ncvar->m_ncdim[idx_layer].m_size - 1;
     return;
   }
   show_grid();
@@ -879,6 +1033,20 @@ void TableWidget::show_grid()
   if(m_layer.size() == 1)
   {
     idx_buf = m_layer[0] * m_nbr_rows * m_nbr_cols;
+  }
+  //4D
+  else if(m_layer.size() == 2)
+  {
+    idx_buf = m_layer[0] * m_ncvar->m_ncdim[1].m_size + m_layer[1];
+    idx_buf *= m_nbr_rows * m_nbr_cols;
+  }
+  //5D
+  else if(m_layer.size() == 3)
+  {
+    idx_buf = m_layer[0] * m_ncvar->m_ncdim[1].m_size * m_ncvar->m_ncdim[2].m_size
+      + m_layer[1] * m_ncvar->m_ncdim[2].m_size
+      + m_layer[2];
+    idx_buf *= m_nbr_rows * m_nbr_cols;
   }
   float *buf_float = NULL;
   double *buf_double = NULL;

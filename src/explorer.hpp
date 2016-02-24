@@ -7,6 +7,7 @@
 #include <QIcon>
 #include <QMdiArea>
 #include <string>
+#include <vector>
 #include "netcdf.h"
 
 class MainWindow;
@@ -114,8 +115,9 @@ public:
   ChildWindow(QWidget *parent, ItemData *item_data);
 
   private slots:
-  void previous_layer();
-  void next_layer();
+  void previous_layer(int);
+  void next_layer(int);
+  void combo_layer(int);
 
 private:
 
@@ -125,13 +127,7 @@ private:
 
   TableWidget *m_table;
   QToolBar *m_tool_bar;
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  //actions
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  QAction *m_next_layer;
-  QAction *m_previous_layer;
+  std::vector<QComboBox *> m_vec_combo;
 };
 
 #endif
