@@ -655,13 +655,28 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-//MainWindow::table
+//MainWindow::add_table
+///////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::add_table(ItemData *item_data)
+{
+  ChildWindow *window = new ChildWindow(this, item_data);
+  m_mdi_area->addSubWindow(window);
+  window->show();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//TableWidget
 ///////////////////////////////////////////////////////////////////////////////////////
 
 class TableWidget : public QTableWidget
 {
 public:
   TableWidget(QWidget *parent, ItemData *item_data);
+  void previous_layer();
+  void next_layer();
+
+  std::vector<int> m_layer;  // current selected layer of a dimension > 2 
   ItemData *m_item_data; // the tree item that generated this grid (convenience pointer to data in ItemData)
   ncvar_t *m_ncvar; // netCDF variable to display (convenience pointer to data in ItemData)
   void show_grid();
@@ -676,6 +691,62 @@ protected:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
+//ChildWindow::ChildWindow
+///////////////////////////////////////////////////////////////////////////////////////
+
+ChildWindow::ChildWindow(QWidget *parent, ItemData *item_data) :
+QMainWindow(parent)
+{
+  m_table = new TableWidget(parent, item_data);
+  setCentralWidget(m_table);
+
+  //data has layers
+  if(item_data->m_ncvar->m_ncdim.size() > 2)
+  {
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //next layer
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    m_next_layer = new QAction(tr("&Next layer..."), this);
+    m_next_layer->setIcon(QIcon(":/images/right.png"));
+    m_next_layer->setStatusTip(tr("Next layer"));
+    connect(m_next_layer, SIGNAL(triggered()), this, SLOT(next_layer()));
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    //previous layer
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    m_previous_layer = new QAction(tr("&Previous layer..."), this);
+    m_previous_layer->setIcon(QIcon(":/images/left.png"));
+    m_previous_layer->setStatusTip(tr("Previous layer"));
+    connect(m_previous_layer, SIGNAL(triggered()), this, SLOT(previous_layer()));
+
+    m_tool_bar = addToolBar(tr("Layers"));
+    m_tool_bar->addAction(m_next_layer);
+    m_tool_bar->addAction(m_previous_layer);
+  }
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//ChildWindow::previous_layer
+///////////////////////////////////////////////////////////////////////////////////////
+
+void ChildWindow::previous_layer()
+{
+  m_table->previous_layer();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//ChildWindow::next_layer
+///////////////////////////////////////////////////////////////////////////////////////
+
+void ChildWindow::next_layer()
+{
+  m_table->next_layer();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 //TableWidget::TableWidget
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -687,6 +758,17 @@ m_dim_rows(item_data->m_grid_policy->m_dim_rows),
 m_dim_cols(item_data->m_grid_policy->m_dim_cols),
 m_ncvar_crd(item_data->m_ncvar_crd)
 {
+  setWindowTitle(QString::fromStdString(item_data->m_item_nm));
+
+  //currently selected layers for dimensions greater than two are the first layer
+  if(m_ncvar->m_ncdim.size() > 2)
+  {
+    for(size_t idx_dmn = 0; idx_dmn < m_ncvar->m_ncdim.size() - 2; idx_dmn++)
+    {
+      m_layer.push_back(0);
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   //define grid
   /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -712,7 +794,39 @@ m_ncvar_crd(item_data->m_ncvar_crd)
 
   //show data
   this->show_grid();
+}
 
+
+///////////////////////////////////////////////////////////////////////////////////////
+//TableWidget::previous_layer
+///////////////////////////////////////////////////////////////////////////////////////
+
+void TableWidget::previous_layer()
+{
+  m_layer[0]--;
+  if(m_layer[0] < 0)
+  {
+    m_layer[0] = 0;
+    return;
+  }
+  show_grid();
+  update();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//TableWidget::next_layer
+///////////////////////////////////////////////////////////////////////////////////////
+
+void TableWidget::next_layer()
+{
+  m_layer[0]++;
+  if((size_t)m_layer[0] >= m_ncvar->m_ncdim[0].m_size)
+  {
+    m_layer[0] = m_ncvar->m_ncdim[0].m_size - 1;
+    return;
+  }
+  show_grid();
+  update();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -761,6 +875,11 @@ const char* TableWidget::get_format(const nc_type typ)
 void TableWidget::show_grid()
 {
   size_t idx_buf = 0;
+  //3D
+  if(m_layer.size() == 1)
+  {
+    idx_buf = m_layer[0] * m_nbr_rows * m_nbr_cols;
+  }
   float *buf_float = NULL;
   double *buf_double = NULL;
   int *buf_int = NULL;
@@ -952,18 +1071,6 @@ void TableWidget::show_grid()
 
 }
 
-
-///////////////////////////////////////////////////////////////////////////////////////
-//MainWindow::table
-///////////////////////////////////////////////////////////////////////////////////////
-
-void MainWindow::table(ItemData *item_data)
-{
-  TableWidget *table = new TableWidget(this, item_data);
-  m_mdi_area->addSubWindow(table);
-  table->show();
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////
 //FileTreeWidget::FileTreeWidget 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1023,7 +1130,7 @@ void FileTreeWidget::grid()
   this->load_item(item);
   ItemData *item_data = get_item_data(item);
   assert(item_data->m_kind == ItemData::Variable);
-  m_main_window->table(item_data);
+  m_main_window->add_table(item_data);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

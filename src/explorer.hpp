@@ -11,6 +11,7 @@
 
 class MainWindow;
 class ItemData;
+class TableWidget;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //FileTreeWidget
@@ -47,8 +48,13 @@ class MainWindow : public QMainWindow
   Q_OBJECT
 public:
   MainWindow();
-  void table(ItemData *item_data);
+  void add_table(ItemData *item_data);
   int read_file(QString file_name);
+
+  private slots:
+  void open_recent_file();
+  void open();
+  void about();
 
 private:
 
@@ -93,13 +99,39 @@ private:
   void set_current_file(const QString &file_name);
   void closeEvent(QCloseEvent *eve);
 
-  private slots:
-  void open_recent_file();
-  void open();
-  void about();
-
 private:
   int iterate(const std::string& file_name, const int grp_id, QTreeWidgetItem *tree_item);
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//ChildWindow
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ChildWindow : public QMainWindow
+{
+  Q_OBJECT
+public:
+  ChildWindow(QWidget *parent, ItemData *item_data);
+
+  private slots:
+  void previous_layer();
+  void next_layer();
+
+private:
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  //widgets
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  TableWidget *m_table;
+  QToolBar *m_tool_bar;
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  //actions
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  QAction *m_next_layer;
+  QAction *m_previous_layer;
 };
 
 #endif

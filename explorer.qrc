@@ -4,5 +4,7 @@
 	<file>images/sample.png</file>
 	<file>images/folder.png</file>
 	<file>images/document.png</file>
+	<file>images/left.png</file>
+	<file>images/right.png</file>
 </qresource>
 </RCC>
