@@ -17,6 +17,8 @@ Road map plans include supporting the HDF file format and the SQLite database fo
 Dependencies
 ------------
 
+<img src="https://cloud.githubusercontent.com/assets/6119070/13334137/231ea0f8-dbd0-11e5-8546-8a409d80aa6d.png">
+
 [Qt](http://www.qt.io/)
 Qt is a cross-platform application framework for creating graphical user interfaces.
 <br /> 
