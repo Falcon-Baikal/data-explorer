@@ -54,7 +54,8 @@ public:
 
   private slots:
   void open_recent_file();
-  void open();
+  void open_file();
+  void open_dap();
   void about();
 
 private:
@@ -75,6 +76,7 @@ private:
   ///////////////////////////////////////////////////////////////////////////////////////
 
   QAction *m_action_open;
+  QAction *m_action_opendap;
   QAction *m_action_exit;
   QAction *m_action_about;
 

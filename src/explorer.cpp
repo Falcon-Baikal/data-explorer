@@ -238,7 +238,7 @@ MainWindow::MainWindow()
   ///////////////////////////////////////////////////////////////////////////////////////
 
   m_tree_dock = new QDockWidget(this);
-  m_tree_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+  m_tree_dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //browser tree
@@ -246,7 +246,6 @@ MainWindow::MainWindow()
 
   m_tree = new FileTreeWidget();
   m_tree->setHeaderHidden(1);
-  m_tree->setFixedWidth(300);
   m_tree->set_main_window(this);
   //add dock
   m_tree_dock->setWidget(m_tree);
@@ -264,7 +263,16 @@ MainWindow::MainWindow()
   m_action_open->setIcon(QIcon(":/images/open.png"));
   m_action_open->setShortcut(QKeySequence::Open);
   m_action_open->setStatusTip(tr("Open a file"));
-  connect(m_action_open, SIGNAL(triggered()), this, SLOT(open()));
+  connect(m_action_open, SIGNAL(triggered()), this, SLOT(open_file()));
+
+  ///////////////////////////////////////////////////////////////////////////////////////
+  //open_dap
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  m_action_opendap = new QAction(tr("OPeN&DAP..."), this);
+  m_action_opendap->setIcon(QIcon(":/images/open_dap.png"));
+  m_action_opendap->setStatusTip(tr("Open a OpenDap URL file"));
+  connect(m_action_opendap, SIGNAL(triggered()), this, SLOT(open_dap()));
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //exit
@@ -300,6 +308,7 @@ MainWindow::MainWindow()
 
   m_menu_file = menuBar()->addMenu(tr("&File"));
   m_menu_file->addAction(m_action_open);
+  m_menu_file->addAction(m_action_opendap);
   m_action_separator_recent = m_menu_file->addSeparator();
   for(int i = 0; i < max_recent_files; ++i)
     m_menu_file->addAction(m_action_recent_file[i]);
@@ -314,6 +323,7 @@ MainWindow::MainWindow()
 
   m_tool_bar = addToolBar(tr("&File"));
   m_tool_bar->addAction(m_action_open);
+  m_tool_bar->addAction(m_action_opendap);
 
   //avoid popup on toolbar
   setContextMenuPolicy(Qt::NoContextMenu);
@@ -364,6 +374,16 @@ void MainWindow::closeEvent(QCloseEvent *eve)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+//is_url
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool is_url(QString file_name)
+{
+  bool isurl = (file_name.left(4) == "http");
+  return isurl;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 //MainWindow::update_recent_file_actions
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -372,17 +392,32 @@ void MainWindow::update_recent_file_actions()
   QMutableStringListIterator i(m_sl_recent_files);
   while(i.hasNext())
   {
-    if(!QFile::exists(i.next()))
+    if(!is_url(i.next()) && !QFile::exists(i.next()))
+    {
       i.remove();
+    }
   }
 
   for(int j = 0; j < max_recent_files; ++j)
   {
     if(j < m_sl_recent_files.count())
     {
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+      //display full name of OpenDAP URL or just last component of local file
+      /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      QString file_name;
+      if(is_url(m_sl_recent_files[j]))
+      {
+        file_name = m_sl_recent_files[j];
+      }
+      else
+      {
+        file_name = stripped_name(m_sl_recent_files[j]);
+      }
       QString text = tr("&%1 %2")
         .arg(j + 1)
-        .arg(stripped_name(m_sl_recent_files[j]));
+        .arg(file_name);
       m_action_recent_file[j]->setText(text);
       m_action_recent_file[j]->setData(m_sl_recent_files[j]);
       m_action_recent_file[j]->setVisible(true);
@@ -423,10 +458,10 @@ void MainWindow::set_current_file(const QString &file_name)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//MainWindow::open
+//MainWindow::open_file
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void MainWindow::open()
+void MainWindow::open_file()
 {
   QString file_name = QFileDialog::getOpenFileName(this,
     tr("Open File"), ".",
@@ -440,6 +475,27 @@ void MainWindow::open()
     this->set_current_file(file_name);
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::open_dap
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::open_dap()
+{
+  QInputDialog dlg(this);
+  dlg.setInputMode(QInputDialog::TextInput);
+  dlg.setLabelText("DAP url");
+  dlg.resize(QSize(400, 60));
+  if(QDialog::Accepted == dlg.exec())
+  {
+    QString file_name = dlg.textValue();
+    if(this->read_file(file_name) == NC_NOERR)
+    {
+      this->set_current_file(file_name);
+    }
+  }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //MainWindow::open_recent_file
 /////////////////////////////////////////////////////////////////////////////////////////////////////
