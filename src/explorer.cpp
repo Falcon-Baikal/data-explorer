@@ -711,9 +711,9 @@ QMainWindow(parent)
   m_table = new TableWidget(parent, item_data);
   setCentralWidget(m_table);
 
-  QSignalMapper *signal_mapper_next;
-  QSignalMapper *signal_mapper_previous;
-  QSignalMapper *signal_mapper_combo;
+  QSignalMapper *signal_mapper_next = NULL;
+  QSignalMapper *signal_mapper_previous = NULL;
+  QSignalMapper *signal_mapper_combo = NULL;
   //data has layers
   if(item_data->m_ncvar->m_ncdim.size() > 2)
   {
@@ -1060,6 +1060,228 @@ void TableWidget::show_grid()
   long long *buf_int64 = NULL;
   unsigned long long *buf_uint64 = NULL;
   char* *buf_string = NULL;
+  QString str;
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  //labels for columns
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  //columns not defined
+  if(m_dim_cols == -1)
+  {
+    assert(m_nbr_cols == 1);
+    str.sprintf("%d", 1);
+    this->setHorizontalHeaderItem(0, new QTableWidgetItem(str));
+  }
+  else
+  {
+    //coordinate variable exists
+    if(m_ncvar_crd[m_dim_cols] != NULL)
+    {
+      switch(m_ncvar_crd[m_dim_cols]->m_nc_type)
+      {
+      case NC_FLOAT:
+        buf_float = static_cast<float*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_FLOAT), buf_float[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_DOUBLE:
+        buf_double = static_cast<double*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_DOUBLE), buf_double[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_INT:
+        buf_int = static_cast<int*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_INT), buf_int[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_SHORT:
+        buf_short = static_cast<short*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_SHORT), buf_short[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_BYTE:
+        buf_byte = static_cast<signed char*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_BYTE), buf_byte[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UBYTE:
+        buf_ubyte = static_cast<unsigned char*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_UBYTE), buf_ubyte[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_USHORT:
+        buf_ushort = static_cast<unsigned short*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_USHORT), buf_ushort[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UINT:
+        buf_uint = static_cast<unsigned int*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_UINT), buf_uint[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_INT64:
+        buf_int64 = static_cast<long long*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_INT64), buf_int64[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UINT64:
+        buf_uint64 = static_cast<unsigned long long*> (m_ncvar_crd[m_dim_cols]->m_buf);
+        for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+        {
+          str.sprintf(get_format(NC_UINT64), buf_uint64[idx_col]);
+          this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+        }
+        break;
+      }//switch  
+    }
+    //coordinate variable does not exist
+    else
+    {
+      for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
+      {
+        str.sprintf("%d", idx_col + 1);
+        this->setHorizontalHeaderItem(idx_col, new QTableWidgetItem(str));
+      }
+    }
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  //labels for rows
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  //rows not defined
+  if(m_dim_rows == -1)
+  {
+    str.sprintf("%d", 1);
+    this->setVerticalHeaderItem(0, new QTableWidgetItem(str));
+  }
+  else
+  {
+    //coordinate variable exists
+    if(m_ncvar_crd[m_dim_rows] != NULL)
+    {
+      switch(m_ncvar_crd[m_dim_rows]->m_nc_type)
+      {
+      case NC_FLOAT:
+        buf_float = static_cast<float*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_FLOAT), buf_float[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_DOUBLE:
+        buf_double = static_cast<double*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_DOUBLE), buf_double[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_INT:
+        buf_int = static_cast<int*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_INT), buf_int[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_SHORT:
+        buf_short = static_cast<short*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_SHORT), buf_short[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_BYTE:
+        buf_byte = static_cast<signed char*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_BYTE), buf_byte[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UBYTE:
+        buf_ubyte = static_cast<unsigned char*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_UBYTE), buf_ubyte[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_USHORT:
+        buf_ushort = static_cast<unsigned short*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_USHORT), buf_ushort[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UINT:
+        buf_uint = static_cast<unsigned int*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_UINT), buf_uint[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_INT64:
+        buf_int64 = static_cast<long long*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_INT64), buf_int64[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      case NC_UINT64:
+        buf_uint64 = static_cast<unsigned long long*> (m_ncvar_crd[m_dim_rows]->m_buf);
+        for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+        {
+          str.sprintf(get_format(NC_UINT64), buf_uint64[idx_row]);
+          this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+        }
+        break;
+      }//switch
+    }
+    //coordinate variable does not exist
+    else
+    {
+      for(int idx_row = 0; idx_row < m_nbr_rows; idx_row++)
+      {
+        str.sprintf("%d", idx_row + 1);
+        this->setVerticalHeaderItem(idx_row, new QTableWidgetItem(str));
+      }
+    }
+  }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   //grid
@@ -1073,10 +1295,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_FLOAT), buf_float[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1087,10 +1307,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_DOUBLE), buf_double[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1101,10 +1319,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_INT), buf_int[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1115,10 +1331,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_SHORT), buf_short[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1129,10 +1343,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_CHAR), buf_char[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1143,10 +1355,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_BYTE), buf_byte[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1157,10 +1367,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_UBYTE), buf_ubyte[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1171,10 +1379,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_USHORT), buf_ushort[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1185,10 +1391,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_UINT), buf_uint[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1199,10 +1403,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_INT64), buf_int64[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1213,10 +1415,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_UINT64), buf_uint64[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
@@ -1227,10 +1427,8 @@ void TableWidget::show_grid()
     {
       for(int idx_col = 0; idx_col < m_nbr_cols; idx_col++)
       {
-        QString str;
         str.sprintf(get_format(NC_STRING), buf_string[idx_buf]);
-        QTableWidgetItem *item = new QTableWidgetItem(str);
-        this->setItem(idx_row, idx_col, item);
+        this->setItem(idx_row, idx_col, new QTableWidgetItem(str));
         idx_buf++;
       }
     }
