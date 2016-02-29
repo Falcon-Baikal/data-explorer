@@ -284,6 +284,18 @@ MainWindow::MainWindow()
   connect(m_action_exit, SIGNAL(triggered()), this, SLOT(close()));
 
   ///////////////////////////////////////////////////////////////////////////////////////
+  //windows
+  ///////////////////////////////////////////////////////////////////////////////////////
+
+  m_action_close_all = new QAction(tr("Close &All"), this);
+  m_action_close_all->setStatusTip(tr("Close all the windows"));
+  connect(m_action_close_all, SIGNAL(triggered()), m_mdi_area, SLOT(closeAllSubWindows()));
+
+  m_action_tile = new QAction(tr("&Tile"), this);
+  m_action_tile->setStatusTip(tr("Tile the windows"));
+  connect(m_action_tile, SIGNAL(triggered()), m_mdi_area, SLOT(tileSubWindows()));
+
+  ///////////////////////////////////////////////////////////////////////////////////////
   //about
   ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -314,6 +326,11 @@ MainWindow::MainWindow()
     m_menu_file->addAction(m_action_recent_file[i]);
   m_menu_file->addSeparator();
   m_menu_file->addAction(m_action_exit);
+
+  m_menu_windows = menuBar()->addMenu(tr("&Window"));
+  m_menu_windows->addAction(m_action_tile);
+  m_menu_windows->addAction(m_action_close_all);
+
   m_menu_help = menuBar()->addMenu(tr("&Help"));
   m_menu_help->addAction(m_action_about);
 
@@ -384,6 +401,15 @@ bool is_url(QString file_name)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
+//last_component
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+QString last_component(const QString &full_file_name)
+{
+  return QFileInfo(full_file_name).fileName();
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 //MainWindow::update_recent_file_actions
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -392,7 +418,12 @@ void MainWindow::update_recent_file_actions()
   QMutableStringListIterator i(m_sl_recent_files);
   while(i.hasNext())
   {
-    if(!is_url(i.next()) && !QFile::exists(i.next()))
+    QString file_name = i.next();
+    if(is_url(file_name))
+    {
+      continue;
+    }
+    if(!QFile::exists(file_name))
     {
       i.remove();
     }
@@ -413,7 +444,7 @@ void MainWindow::update_recent_file_actions()
       }
       else
       {
-        file_name = stripped_name(m_sl_recent_files[j]);
+        file_name = last_component(m_sl_recent_files[j]);
       }
       QString text = tr("&%1 %2")
         .arg(j + 1)
@@ -431,15 +462,6 @@ void MainWindow::update_recent_file_actions()
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//MainWindow::stripped_name
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-
-QString MainWindow::stripped_name(const QString &full_file_name)
-{
-  return QFileInfo(full_file_name).fileName();
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////
 //MainWindow::set_current_file
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -450,7 +472,7 @@ void MainWindow::set_current_file(const QString &file_name)
   QString shownName = tr("Untitled");
   if(!m_str_current_file.isEmpty())
   {
-    shownName = stripped_name(m_str_current_file);
+    shownName = last_component(m_str_current_file);
     m_sl_recent_files.removeAll(m_str_current_file);
     m_sl_recent_files.prepend(m_str_current_file);
     update_recent_file_actions();
@@ -763,6 +785,10 @@ QMainWindow(parent)
   unsigned int *buf_uint = NULL;
   long long *buf_int64 = NULL;
   unsigned long long *buf_uint64 = NULL;
+  QString str;
+
+  str.sprintf(" : %s", item_data->m_item_nm.c_str());
+  this->setWindowTitle(last_component(item_data->m_file_name.c_str()) + str);
 
   m_table = new TableWidget(parent, item_data);
   setCentralWidget(m_table);
@@ -827,7 +853,6 @@ QMainWindow(parent)
     {
       void *buf = item_data->m_ncvar_crd[idx_dmn]->m_buf;
       size_t size = item_data->m_ncvar->m_ncdim[idx_dmn].m_size;
-      QString str;
       switch(item_data->m_ncvar_crd[idx_dmn]->m_nc_type)
       {
       case NC_FLOAT:
@@ -843,6 +868,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_DOUBLE), buf_double[idx]);
+          list.append(str);
         }
         break;
       case NC_INT:
@@ -850,6 +876,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_INT), buf_int[idx]);
+          list.append(str);
         }
         break;
       case NC_SHORT:
@@ -857,6 +884,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_SHORT), buf_short[idx]);
+          list.append(str);
         }
         break;
       case NC_BYTE:
@@ -864,6 +892,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_BYTE), buf_byte[idx]);
+          list.append(str);
         }
         break;
       case NC_UBYTE:
@@ -871,6 +900,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_UBYTE), buf_ubyte[idx]);
+          list.append(str);
         }
         break;
       case NC_USHORT:
@@ -878,6 +908,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_USHORT), buf_ushort[idx]);
+          list.append(str);
         }
         break;
       case NC_UINT:
@@ -885,6 +916,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_UINT), buf_uint[idx]);
+          list.append(str);
         }
         break;
       case NC_INT64:
@@ -892,6 +924,7 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_INT64), buf_int64[idx]);
+          list.append(str);
         }
         break;
       case NC_UINT64:
@@ -899,15 +932,16 @@ QMainWindow(parent)
         for(size_t idx = 0; idx < size; idx++)
         {
           str.sprintf(m_table->get_format(NC_UINT64), buf_uint64[idx]);
+          list.append(str);
         }
         break;
       } //switch
+
     }
     else
     {
       for(unsigned int idx = 0; idx < item_data->m_ncvar->m_ncdim[idx_dmn].m_size; idx++)
       {
-        QString str;
         str.sprintf("%u", idx + 1);
         list.append(str);
       }

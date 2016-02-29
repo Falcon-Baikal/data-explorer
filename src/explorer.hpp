@@ -66,6 +66,7 @@ private:
 
   QMenu *m_menu_file;
   QMenu *m_menu_help;
+  QMenu *m_menu_windows;
   QToolBar *m_tool_bar;
   QMdiArea *m_mdi_area;
   FileTreeWidget *m_tree;
@@ -79,6 +80,8 @@ private:
   QAction *m_action_opendap;
   QAction *m_action_exit;
   QAction *m_action_about;
+  QAction *m_action_tile;
+  QAction *m_action_close_all;
 
   ///////////////////////////////////////////////////////////////////////////////////////
   //icons
@@ -97,7 +100,6 @@ private:
   QAction *m_action_separator_recent;
   QStringList m_sl_recent_files;
   QString m_str_current_file;
-  QString stripped_name(const QString &full_file_name);
   void update_recent_file_actions();
   void set_current_file(const QString &file_name);
   void closeEvent(QCloseEvent *eve);

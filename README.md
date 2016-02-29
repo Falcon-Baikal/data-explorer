@@ -36,6 +36,8 @@ Building from source
 Install dependency packages (Ubuntu):
 <pre>
 sudo apt-get install build-essential
+sudo apt-get build-dep qt5-default
+sudo apt-get install "^libxcb.*" libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev
 sudo apt-get install libgl1-mesa-dev
 sudo apt-get install libnetcdf-dev netcdf-bin netcdf-doc
 </pre>
