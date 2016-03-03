@@ -10,6 +10,8 @@
 #include <algorithm>
 #include "explorer.hpp"
 
+const char* get_format(const nc_type typ);
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //main
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -733,17 +735,6 @@ int MainWindow::iterate(const std::string& file_name, const int grp_id, QTreeWid
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-//MainWindow::add_table
-///////////////////////////////////////////////////////////////////////////////////////
-
-void MainWindow::add_table(ItemData *item_data)
-{
-  ChildWindow *window = new ChildWindow(this, item_data);
-  m_mdi_area->addSubWindow(window);
-  window->show();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 //TableWidget
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -751,16 +742,18 @@ class TableWidget : public QTableWidget
 {
 public:
   TableWidget(QWidget *parent, ItemData *item_data);
-  void previous_layer(int idx_layer);
-  void next_layer(int idx_layer);
-
-  std::vector<int> m_layer;  // current selected layer of a dimension > 2 
-  ItemData *m_item_data; // the tree item that generated this grid (convenience pointer to data in ItemData)
-  ncvar_t *m_ncvar; // netCDF variable to display (convenience pointer to data in ItemData)
-  void show_grid();
-  const char* get_format(const nc_type typ);
 
 protected:
+  void paintEvent(QPaintEvent *eve)
+  {
+    QTableWidget::paintEvent(eve);
+    show_grid();
+  }
+
+private:
+  void show_grid();
+  ItemData *m_item_data; // the tree item that generated this grid 
+  ncvar_t *m_ncvar; // netCDF variable to display (convenience pointer to data in ItemData) 
   int m_nbr_rows;   // number of rows
   int m_nbr_cols;   // number of columns
   int m_dim_rows;   // choose rows (convenience duplicate to data in ItemData)
@@ -768,12 +761,41 @@ protected:
   std::vector<ncvar_t *> m_ncvar_crd; // optional coordinate variables for variable (convenience duplicate to data in ItemData)
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//ChildWindowTable
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ChildWindowTable : public ChildWindow
+{
+public:
+  ChildWindowTable(QWidget *parent, ItemData *item_data) :
+    ChildWindow(parent, item_data)
+  {
+    m_table = new TableWidget(parent, item_data);
+    setCentralWidget(m_table);
+  }
+private:
+  TableWidget *m_table;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::add_table
+///////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::add_table(ItemData *item_data)
+{
+  ChildWindowTable *window = new ChildWindowTable(this, item_data);
+  m_mdi_area->addSubWindow(window);
+  window->show();
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //ChildWindow::ChildWindow
 ///////////////////////////////////////////////////////////////////////////////////////
 
 ChildWindow::ChildWindow(QWidget *parent, ItemData *item_data) :
-QMainWindow(parent)
+QMainWindow(parent),
+m_ncvar(item_data->m_ncvar)
 {
   float *buf_float = NULL;
   double *buf_double = NULL;
@@ -790,8 +812,14 @@ QMainWindow(parent)
   str.sprintf(" : %s", item_data->m_item_nm.c_str());
   this->setWindowTitle(last_component(item_data->m_file_name.c_str()) + str);
 
-  m_table = new TableWidget(parent, item_data);
-  setCentralWidget(m_table);
+  //currently selected layers for dimensions greater than two are the first layer
+  if(m_ncvar->m_ncdim.size() > 2)
+  {
+    for(size_t idx_dmn = 0; idx_dmn < m_ncvar->m_ncdim.size() - 2; idx_dmn++)
+    {
+      m_layer.push_back(0);
+    }
+  }
 
   QSignalMapper *signal_mapper_next = NULL;
   QSignalMapper *signal_mapper_previous = NULL;
@@ -809,7 +837,7 @@ QMainWindow(parent)
   }
 
   //number of dimensions above a two-dimensional dataset
-  for(size_t idx_dmn = 0; idx_dmn < m_table->m_layer.size(); idx_dmn++)
+  for(size_t idx_dmn = 0; idx_dmn < m_layer.size(); idx_dmn++)
   {
     ///////////////////////////////////////////////////////////////////////////////////////
     //next layer
@@ -859,7 +887,7 @@ QMainWindow(parent)
         buf_float = static_cast<float*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_FLOAT), buf_float[idx]);
+          str.sprintf(get_format(NC_FLOAT), buf_float[idx]);
           list.append(str);
         }
         break;
@@ -867,7 +895,7 @@ QMainWindow(parent)
         buf_double = static_cast<double*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_DOUBLE), buf_double[idx]);
+          str.sprintf(get_format(NC_DOUBLE), buf_double[idx]);
           list.append(str);
         }
         break;
@@ -875,7 +903,7 @@ QMainWindow(parent)
         buf_int = static_cast<int*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_INT), buf_int[idx]);
+          str.sprintf(get_format(NC_INT), buf_int[idx]);
           list.append(str);
         }
         break;
@@ -883,7 +911,7 @@ QMainWindow(parent)
         buf_short = static_cast<short*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_SHORT), buf_short[idx]);
+          str.sprintf(get_format(NC_SHORT), buf_short[idx]);
           list.append(str);
         }
         break;
@@ -891,7 +919,7 @@ QMainWindow(parent)
         buf_byte = static_cast<signed char*>  (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_BYTE), buf_byte[idx]);
+          str.sprintf(get_format(NC_BYTE), buf_byte[idx]);
           list.append(str);
         }
         break;
@@ -899,7 +927,7 @@ QMainWindow(parent)
         buf_ubyte = static_cast<unsigned char*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_UBYTE), buf_ubyte[idx]);
+          str.sprintf(get_format(NC_UBYTE), buf_ubyte[idx]);
           list.append(str);
         }
         break;
@@ -907,7 +935,7 @@ QMainWindow(parent)
         buf_ushort = static_cast<unsigned short*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_USHORT), buf_ushort[idx]);
+          str.sprintf(get_format(NC_USHORT), buf_ushort[idx]);
           list.append(str);
         }
         break;
@@ -915,7 +943,7 @@ QMainWindow(parent)
         buf_uint = static_cast<unsigned int*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_UINT), buf_uint[idx]);
+          str.sprintf(get_format(NC_UINT), buf_uint[idx]);
           list.append(str);
         }
         break;
@@ -923,7 +951,7 @@ QMainWindow(parent)
         buf_int64 = static_cast<long long*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_INT64), buf_int64[idx]);
+          str.sprintf(get_format(NC_INT64), buf_int64[idx]);
           list.append(str);
         }
         break;
@@ -931,7 +959,7 @@ QMainWindow(parent)
         buf_uint64 = static_cast<unsigned long long*> (buf);
         for(size_t idx = 0; idx < size; idx++)
         {
-          str.sprintf(m_table->get_format(NC_UINT64), buf_uint64[idx]);
+          str.sprintf(get_format(NC_UINT64), buf_uint64[idx]);
           list.append(str);
         }
         break;
@@ -953,7 +981,6 @@ QMainWindow(parent)
     m_tool_bar->addWidget(combo);
     m_vec_combo.push_back(combo);
   }
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -962,9 +989,15 @@ QMainWindow(parent)
 
 void ChildWindow::previous_layer(int idx_layer)
 {
-  m_table->previous_layer(idx_layer);
+  m_layer[idx_layer]--;
+  if(m_layer[idx_layer] < 0)
+  {
+    m_layer[idx_layer] = 0;
+    return;
+  }
   QComboBox *combo = m_vec_combo.at(idx_layer);
-  combo->setCurrentIndex(m_table->m_layer[idx_layer]);
+  combo->setCurrentIndex(m_layer[idx_layer]);
+  update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -973,9 +1006,15 @@ void ChildWindow::previous_layer(int idx_layer)
 
 void ChildWindow::next_layer(int idx_layer)
 {
-  m_table->next_layer(idx_layer);
+  m_layer[idx_layer]++;
+  if((size_t)m_layer[idx_layer] >= m_ncvar->m_ncdim[idx_layer].m_size)
+  {
+    m_layer[idx_layer] = m_ncvar->m_ncdim[idx_layer].m_size - 1;
+    return;
+  }
   QComboBox *combo = m_vec_combo.at(idx_layer);
-  combo->setCurrentIndex(m_table->m_layer[idx_layer]);
+  combo->setCurrentIndex(m_layer[idx_layer]);
+  update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -985,9 +1024,8 @@ void ChildWindow::next_layer(int idx_layer)
 void ChildWindow::combo_layer(int idx_layer)
 {
   QComboBox *combo = m_vec_combo.at(idx_layer);
-  m_table->m_layer[idx_layer] = combo->currentIndex();;
-  m_table->show_grid();
-  m_table->update();
+  m_layer[idx_layer] = combo->currentIndex();;
+  update();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1003,15 +1041,6 @@ m_dim_cols(item_data->m_grid_policy->m_dim_cols),
 m_ncvar_crd(item_data->m_ncvar_crd)
 {
   setWindowTitle(QString::fromStdString(item_data->m_item_nm));
-
-  //currently selected layers for dimensions greater than two are the first layer
-  if(m_ncvar->m_ncdim.size() > 2)
-  {
-    for(size_t idx_dmn = 0; idx_dmn < m_ncvar->m_ncdim.size() - 2; idx_dmn++)
-    {
-      m_layer.push_back(0);
-    }
-  }
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////
   //define grid
@@ -1035,51 +1064,15 @@ m_ncvar_crd(item_data->m_ncvar_crd)
   }
   setRowCount(m_nbr_rows);
   setColumnCount(m_nbr_cols);
-
-  //show data
-  this->show_grid();
-}
-
-
-///////////////////////////////////////////////////////////////////////////////////////
-//TableWidget::previous_layer
-///////////////////////////////////////////////////////////////////////////////////////
-
-void TableWidget::previous_layer(int idx_layer)
-{
-  m_layer[idx_layer]--;
-  if(m_layer[idx_layer] < 0)
-  {
-    m_layer[idx_layer] = 0;
-    return;
-  }
-  show_grid();
-  update();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-//TableWidget::next_layer
-///////////////////////////////////////////////////////////////////////////////////////
-
-void TableWidget::next_layer(int idx_layer)
-{
-  m_layer[idx_layer]++;
-  if((size_t)m_layer[idx_layer] >= m_ncvar->m_ncdim[idx_layer].m_size)
-  {
-    m_layer[idx_layer] = m_ncvar->m_ncdim[idx_layer].m_size - 1;
-    return;
-  }
-  show_grid();
-  update();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-//TableWidget::get_format
+//get_format
 //Provide sprintf() format string for specified netCDF type
 //Based on NCO utilities
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const char* TableWidget::get_format(const nc_type typ)
+const char* get_format(const nc_type typ)
 {
   switch(typ)
   {
@@ -1111,31 +1104,31 @@ const char* TableWidget::get_format(const nc_type typ)
   return NULL;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////
 //TableWidget::show_grid
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void TableWidget::show_grid()
 {
+  ChildWindow* parent = qobject_cast<ChildWindow*>(this->parentWidget());
   size_t idx_buf = 0;
   //3D
-  if(m_layer.size() == 1)
+  if(parent->m_layer.size() == 1)
   {
-    idx_buf = m_layer[0] * m_nbr_rows * m_nbr_cols;
+    idx_buf = parent->m_layer[0] * m_nbr_rows * m_nbr_cols;
   }
   //4D
-  else if(m_layer.size() == 2)
+  else if(parent->m_layer.size() == 2)
   {
-    idx_buf = m_layer[0] * m_ncvar->m_ncdim[1].m_size + m_layer[1];
+    idx_buf = parent->m_layer[0] * m_ncvar->m_ncdim[1].m_size + parent->m_layer[1];
     idx_buf *= m_nbr_rows * m_nbr_cols;
   }
   //5D
-  else if(m_layer.size() == 3)
+  else if(parent->m_layer.size() == 3)
   {
-    idx_buf = m_layer[0] * m_ncvar->m_ncdim[1].m_size * m_ncvar->m_ncdim[2].m_size
-      + m_layer[1] * m_ncvar->m_ncdim[2].m_size
-      + m_layer[2];
+    idx_buf = parent->m_layer[0] * m_ncvar->m_ncdim[1].m_size * m_ncvar->m_ncdim[2].m_size
+      + parent->m_layer[1] * m_ncvar->m_ncdim[2].m_size
+      + parent->m_layer[2];
     idx_buf *= m_nbr_rows * m_nbr_cols;
   }
   float *buf_float = NULL;

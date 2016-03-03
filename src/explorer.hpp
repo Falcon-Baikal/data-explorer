@@ -13,6 +13,7 @@
 class MainWindow;
 class ItemData;
 class TableWidget;
+class ncvar_t;
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //FileTreeWidget
@@ -110,6 +111,8 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //ChildWindow
+//Abstract class used to later render a grid (QTableWidget) or an image (QPainter)
+//Model/View design
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class ChildWindow : public QMainWindow
@@ -117,6 +120,7 @@ class ChildWindow : public QMainWindow
   Q_OBJECT
 public:
   ChildWindow(QWidget *parent, ItemData *item_data);
+  std::vector<int> m_layer;  // current selected layer of a dimension > 2 
 
   private slots:
   void previous_layer(int);
@@ -124,14 +128,11 @@ public:
   void combo_layer(int);
 
 private:
-
-  ///////////////////////////////////////////////////////////////////////////////////////
-  //widgets
-  ///////////////////////////////////////////////////////////////////////////////////////
-
-  TableWidget *m_table;
   QToolBar *m_tool_bar;
   std::vector<QComboBox *> m_vec_combo;
+
+protected:
+  ncvar_t *m_ncvar; // netCDF variable to display (convenience pointer to data in ItemData)
 };
 
 #endif
