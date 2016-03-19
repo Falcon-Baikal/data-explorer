@@ -778,6 +778,46 @@ private:
   TableWidget *m_table;
 };
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//RenderWidget
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class RenderWidget : public QWidget
+{
+public:
+  RenderWidget(QWidget *parent, ItemData *item_data) :
+    QWidget(parent),
+    m_item_data(item_data)
+  {
+
+  }
+  QSize sizeHint() const;
+
+protected:
+  void paintEvent(QPaintEvent *);
+
+private:
+  ItemData *m_item_data; // the tree item that generated this image 
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//ChildWindowImage
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ChildWindowImage : public ChildWindow
+{
+public:
+  ChildWindowImage(QWidget *parent, ItemData *item_data) :
+    ChildWindow(parent, item_data)
+  {
+    m_render_area = new RenderWidget(parent, item_data);
+    setCentralWidget(m_render_area);
+  }
+
+private:
+  RenderWidget *m_render_area;
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////
 //MainWindow::add_table
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -785,6 +825,17 @@ private:
 void MainWindow::add_table(ItemData *item_data)
 {
   ChildWindowTable *window = new ChildWindowTable(this, item_data);
+  m_mdi_area->addSubWindow(window);
+  window->show();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//MainWindow::add_image
+///////////////////////////////////////////////////////////////////////////////////////
+
+void MainWindow::add_image(ItemData *item_data)
+{
+  ChildWindowImage *window = new ChildWindowImage(this, item_data);
   m_mdi_area->addSubWindow(window);
   window->show();
 }
@@ -1532,7 +1583,7 @@ FileTreeWidget::FileTreeWidget(QWidget *parent) : QTreeWidget(parent)
   connect(this, SIGNAL(customContextMenuRequested(const QPoint &)), SLOT(show_context_menu(const QPoint &)));
 
   //double click
-  connect(this, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)), this, SLOT(grid()));
+  connect(this, SIGNAL(itemDoubleClicked(QTreeWidgetItem*, int)), this, SLOT(add_grid()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -1563,23 +1614,40 @@ void FileTreeWidget::show_context_menu(const QPoint &p)
     return;
   QMenu menu;
   QAction *action_grid = new QAction("Grid...", this);;
-  connect(action_grid, SIGNAL(triggered()), this, SLOT(grid()));
+  connect(action_grid, SIGNAL(triggered()), this, SLOT(add_grid()));
   menu.addAction(action_grid);
+  QAction *action_image = new QAction("Map...", this);;
+  connect(action_image, SIGNAL(triggered()), this, SLOT(add_image()));
+  action_image->setEnabled(false);
+  menu.addAction(action_image);
   menu.addSeparator();
   menu.exec(QCursor::pos());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-//FileTreeWidget::grid
+//FileTreeWidget::add_grid
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void FileTreeWidget::grid()
+void FileTreeWidget::add_grid()
 {
   QTreeWidgetItem *item = static_cast <QTreeWidgetItem*> (currentItem());
   this->load_item(item);
   ItemData *item_data = get_item_data(item);
   assert(item_data->m_kind == ItemData::Variable);
   m_main_window->add_table(item_data);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//FileTreeWidget::add_image
+///////////////////////////////////////////////////////////////////////////////////////
+
+void FileTreeWidget::add_image()
+{
+  QTreeWidgetItem *item = static_cast <QTreeWidgetItem*> (currentItem());
+  this->load_item(item);
+  ItemData *item_data = get_item_data(item);
+  assert(item_data->m_kind == ItemData::Variable);
+  m_main_window->add_image(item_data);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1832,3 +1900,21 @@ void* FileTreeWidget::load_variable(const int nc_id, const int var_id, const nc_
   return buf;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//RenderWidget::sizeHint
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+QSize RenderWidget::sizeHint() const
+{
+  return QSize(400, 200);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+//RenderWidget::paintEvent
+/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void RenderWidget::paintEvent(QPaintEvent *)
+{
+  QPainter painter(this);
+
+}

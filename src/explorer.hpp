@@ -27,7 +27,8 @@ public:
   ~FileTreeWidget();
   private slots:
   void show_context_menu(const QPoint &);
-  void grid();
+  void add_grid();
+  void add_image();
 
 public:
   void set_main_window(MainWindow *p)
@@ -51,6 +52,7 @@ class MainWindow : public QMainWindow
 public:
   MainWindow();
   void add_table(ItemData *item_data);
+  void add_image(ItemData *item_data);
   int read_file(QString file_name);
 
   private slots:
